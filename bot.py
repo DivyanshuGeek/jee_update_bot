@@ -1,8 +1,7 @@
 import os
 import requests
 from bs4 import BeautifulSoup
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram import Bot
 
 # --- Load Environment Variables ---
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -10,14 +9,16 @@ CHAT_ID = os.getenv("CHAT_ID")
 
 # Safety checks
 if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN is missing! Set it in Railway Environment Variables.")
+    raise ValueError("BOT_TOKEN is missing!")
 if not CHAT_ID:
-    raise ValueError("CHAT_ID is missing! Set it in Railway Environment Variables.")
+    raise ValueError("CHAT_ID is missing!")
 
 try:
     CHAT_ID = int(CHAT_ID)
 except ValueError:
     raise ValueError(f"CHAT_ID must be an integer. Got: {CHAT_ID}")
+
+bot = Bot(token=BOT_TOKEN)
 
 # --- Scrape Public Notices ---
 def get_public_notices():
@@ -47,23 +48,14 @@ def get_public_notices():
 
     return "\n\n".join(results) if results else "No Public Notices found."
 
-# --- /update Command ---
-async def update_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Fetching Public Notices... ⏳")
-    notices = get_public_notices()
-    await update.message.reply_text(notices)
-
-# --- Main ---
+# --- Main Loop ---
 def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    # Add /update handler
-    app.add_handler(CommandHandler("update", update_command))
-
-    print("Bot is ready. Sleeping until /update command...")
-
-    # Run the bot (this is all you need)
-    app.run_polling()
+    print("Bot is ready. Send /update in chat to get Public Notices.")
+    while True:
+        cmd = input("Type /update to test: ")
+        if cmd.strip() == "/update":
+            notices = get_public_notices()
+            bot.send_message(chat_id=CHAT_ID, text=notices)
 
 if __name__ == "__main__":
     main()
