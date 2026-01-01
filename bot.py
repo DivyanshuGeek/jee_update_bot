@@ -1,26 +1,25 @@
 import os
 import requests
 from bs4 import BeautifulSoup
-from telegram import Bot
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# --- Load Environment Variables ---
+# --- Load Telegram bot token & chat ID from Railway environment ---
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
 # Safety checks
 if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN is missing!")
+    raise ValueError("BOT_TOKEN is missing! Set it in Railway Environment Variables.")
 if not CHAT_ID:
-    raise ValueError("CHAT_ID is missing!")
+    raise ValueError("CHAT_ID is missing! Set it in Railway Environment Variables.")
 
 try:
     CHAT_ID = int(CHAT_ID)
 except ValueError:
     raise ValueError(f"CHAT_ID must be an integer. Got: {CHAT_ID}")
 
-bot = Bot(token=BOT_TOKEN)
-
-# --- Scrape Public Notices ---
+# --- Function to scrape Public Notices ---
 def get_public_notices():
     url = "https://jeemain.nta.nic.in/"
     try:
@@ -48,14 +47,21 @@ def get_public_notices():
 
     return "\n\n".join(results) if results else "No Public Notices found."
 
-# --- Main Loop ---
+# --- /update Command Handler ---
+async def update_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Fetching Public Notices... ⏳")
+    notices = get_public_notices()
+    await update.message.reply_text(notices)
+
+# --- Main Bot ---
 def main():
-    print("Bot is ready. Send /update in chat to get Public Notices.")
-    while True:
-        cmd = input("Type /update to test: ")
-        if cmd.strip() == "/update":
-            notices = get_public_notices()
-            bot.send_message(chat_id=CHAT_ID, text=notices)
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler("update", update_command))
+
+    print("Bot is ready. Sleeping until /update is sent in chat...")
+    
+    # Run the bot (handles async internally)
+    app.run_polling()
 
 if __name__ == "__main__":
     main()
